@@ -1,5 +1,7 @@
 package netron90.personnalize.personnalize_co_admin;
 
+import android.content.Context;
+import android.content.Intent;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -7,6 +9,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+
+import com.google.firebase.firestore.auth.User;
 
 import java.util.List;
 
@@ -18,7 +22,8 @@ import netron90.personnalize.personnalize_co_admin.Database.DocumentAvailable;
 
 public class DocumentAvailableAdapter extends RecyclerView.Adapter<DocumentAvailableAdapter.ViewHolder> {
 
-    private List<DocumentAvailable> docAvailable;
+    public static List<DocumentAvailable> docAvailable;
+    private Context context;
 
     public DocumentAvailableAdapter(List<DocumentAvailable> docAvailable) {
         this.docAvailable = docAvailable;
@@ -29,6 +34,7 @@ public class DocumentAvailableAdapter extends RecyclerView.Adapter<DocumentAvail
 
         View view = LayoutInflater.from(parent.getContext()).inflate(
                 R.layout.document_model_activity, null, false);
+        context = parent.getContext();
 
         return new ViewHolder(view);
     }
@@ -78,6 +84,18 @@ public class DocumentAvailableAdapter extends RecyclerView.Adapter<DocumentAvail
             userDetail          = (RelativeLayout) itemView.findViewById(R.id.user_detail);
             diapoDetail         = (RelativeLayout) itemView.findViewById(R.id.diapo_detail);
             docChat             = (RelativeLayout) itemView.findViewById(R.id.doc_chat);
+
+            userDetail.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    MainActivity.onCreateFlag = false;
+                    Intent intent = new Intent(context, UserDetail.class);
+                    intent.putExtra(UserDetail.USER_NAME_KEY, docAvailable.get(getLayoutPosition()).nameUser);
+                    intent.putExtra(UserDetail.USER_EMAIL_KEY, docAvailable.get(getLayoutPosition()).emailUser);
+                    intent.putExtra(UserDetail.USER_PHONE_KEY, docAvailable.get(getLayoutPosition()).phoneUser);
+                    context.startActivity(intent);
+                }
+            });
 
         }
     }

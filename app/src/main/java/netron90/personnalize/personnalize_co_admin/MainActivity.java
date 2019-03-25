@@ -2,10 +2,14 @@ package netron90.personnalize.personnalize_co_admin;
 
 import android.arch.persistence.room.Room;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.DefaultItemAnimator;
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
@@ -32,6 +36,9 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences sharedPreferences;
     private ListenerRegistration registration;
     private DocumentAvailable documentAvailable;
+    private DocumentAvailableAdapter documentAvailableAdapter;
+    private int serverFirstTimeListener = 1;
+    public static boolean onCreateFlag = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,9 +48,14 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
         dbFirestore  = FirebaseFirestore.getInstance();
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        documentAvailable = new DocumentAvailable();
 
         if(sharedPreferences.getBoolean(FIRST_CALL_SERVE_LISTENER, false) == true)
         {
+            //TODO: LOADDOCUMENT FROM LOCAL DATABASE
+            onCreateFlag = true;
+            LoadData loadData = new LoadData();
+            loadData.execute();
 
         }
         else
@@ -52,29 +64,93 @@ public class MainActivity extends AppCompatActivity {
             registration = dbFirestore.collection("Document").addSnapshotListener(new EventListener<QuerySnapshot>() {
                 @Override
                 public void onEvent(@Nullable QuerySnapshot value, @Nullable FirebaseFirestoreException e) {
-                    if(e != null)
+                    if(sharedPreferences.getBoolean(FIRST_CALL_SERVE_LISTENER, false) == false)
                     {
-                        Log.d("EXCEPTION FIRES LIST", "Exception occured when listening document: " + e);
-                        return;
-                    }
+                        if(isOnline())
+                        {
+                            if(e != null)
+                            {
+                                Log.d("EXCEPTION FIRES LIST", "Exception occured when listening document: " + e);
+                                return;
+                            }
 
-                    Log.d("DOC DATA", "Document data: " + value);
-                    if(value.isEmpty())
-                    {}
+                            Log.d("CONNEXION", "connexion");
+                            Log.d("DOC DATA", "Document data: " + value);
+                            if(value.isEmpty())
+                            {}
+                            else
+                            {
+
+                                for(QueryDocumentSnapshot doc : value)
+                                {
+                                    Log.d("DOC DATA", "Document data: " + doc);
+                                    saveFirstDocumentOnServer(doc);
+                                }
+                            }
+
+                            SaveFirstDocument saveFirstDocument = new SaveFirstDocument();
+                            saveFirstDocument.execute();
+                        }
+                        else {
+                            Log.d("CONNEXION", "Pas de connexion");
+                        }
+
+                    }
                     else
                     {
-                        documentAvailable = new DocumentAvailable();
-                        for(QueryDocumentSnapshot doc : value)
+                        if(isOnline())
                         {
-                            saveFirstDocumentOnServer(doc);
+                            if(e != null)
+                            {
+                                Log.d("EXCEPTION FIRES LIST", "Exception occured when listening document: " + e);
+                                return;
+                            }
+
+                            Log.d("DOC DATA", "Document data: " + value);
+                            if(value.isEmpty())
+                            {}
+                            else
+                            {
+                                if(serverFirstTimeListener == 1)
+                                {
+
+                                }else
+                                {
+                                    documentAvailable = new DocumentAvailable();
+                                    for(QueryDocumentSnapshot doc : value)
+                                    {
+                                        saveFirstDocumentOnServer(doc);
+                                    }
+                                    SaveDataUpdate saveDataUpdate = new SaveDataUpdate();
+                                    saveDataUpdate.execute();
+                                }
+
+                            }
                         }
+
                     }
-                    SaveFirstDocument saveFirstDocument = new SaveFirstDocument();
-                    saveFirstDocument.execute();
+
                 }
             });
         }
 
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if(onCreateFlag){}
+        else
+        {
+            LoadData loadData = new LoadData();
+            loadData.execute();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        registration.remove();
     }
 
     private void saveFirstDocumentOnServer(QueryDocumentSnapshot doc)
@@ -147,6 +223,7 @@ public class MainActivity extends AppCompatActivity {
 
             List<DocumentAvailable> documentAvailableList = db.userDao().selectListDocAvailable();
 
+            db.close();
             return documentAvailableList;
         }
 
@@ -157,8 +234,116 @@ public class MainActivity extends AppCompatActivity {
             if(documentAvailables.size() != 0)
             {
                 recyclerView.setVisibility(View.VISIBLE);
+                documentAvailableAdapter = new DocumentAvailableAdapter(documentAvailables);
+                recyclerView.setAdapter(documentAvailableAdapter);
+                recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+                recyclerView.setItemAnimator(new DefaultItemAnimator());
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putBoolean(FIRST_CALL_SERVE_LISTENER, true).apply();
+                serverFirstTimeListener++;
             }
         }
     }
+
+    public class LoadData extends AsyncTask<Void, Void, List<DocumentAvailable>>
+    {
+        @Override
+        protected List<DocumentAvailable> doInBackground(Void... voids) {
+
+            final PersonnalizeDatabase db = Room.databaseBuilder(getApplicationContext(),
+                    PersonnalizeDatabase.class, "personnalize").build();
+
+            List<DocumentAvailable> documentAvailableList = db.userDao().selectListDocAvailable();
+
+            db.close();
+            return documentAvailableList;
+        }
+
+        @Override
+        protected void onPostExecute(List<DocumentAvailable> documentAvailables) {
+            super.onPostExecute(documentAvailables);
+
+            if(documentAvailables.size() != 0)
+            {
+                recyclerView.setVisibility(View.VISIBLE);
+                documentAvailableAdapter = new DocumentAvailableAdapter(documentAvailables);
+                recyclerView.setAdapter(documentAvailableAdapter);
+                recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+                recyclerView.setItemAnimator(new DefaultItemAnimator());
+
+                //TODO: ADD LISTER FOR NEW DOCUMENT
+
+                registration = dbFirestore.collection("Document").addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot value, @Nullable FirebaseFirestoreException e) {
+
+                        if(e != null)
+                        {
+                            Log.d("EXCEPTION FIRES LIST", "Exception occured when listening document: " + e);
+                            return;
+                        }
+
+                        Log.d("DOC DATA", "Document data: " + value);
+                        if(value.isEmpty())
+                        {}
+                        else
+                        {
+                            if(serverFirstTimeListener == 1)
+                            {
+
+                            }else
+                            {
+                                documentAvailable = new DocumentAvailable();
+                                for(QueryDocumentSnapshot doc : value)
+                                {
+                                    saveFirstDocumentOnServer(doc);
+                                }
+                                SaveDataUpdate saveDataUpdate = new SaveDataUpdate();
+                                saveDataUpdate.execute();
+                            }
+
+                        }
+
+
+                    }
+                });
+            }
+        }
+    }
+
+    public class SaveDataUpdate extends AsyncTask<Void, Void, Void>
+    {
+        @Override
+        protected Void doInBackground(Void... voids) {
+
+            final PersonnalizeDatabase db = Room.databaseBuilder(getApplicationContext(),
+                    PersonnalizeDatabase.class, "personnalize").build();
+
+            db.userDao().insertNewDocAvailable(documentAvailable);
+
+            DocumentAvailableAdapter.docAvailable.add(documentAvailable);
+
+            db.close();
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            documentAvailableAdapter.notifyDataSetChanged();
+        }
+    }
+
+    private boolean isOnline()
+    {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        if(networkInfo != null && networkInfo.isConnected())
+            return true;
+        else
+            return false;
+    }
+
 
 }
