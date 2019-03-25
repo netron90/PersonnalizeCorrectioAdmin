@@ -13,15 +13,15 @@ import java.util.List;
 @Dao
 public interface UserDao {
 
-    //Insert one document
-    @Insert()
-    public void insertDocument(DocumentUser childrenList);
-
-    @Query("SELECT * FROM document_user")
-    public List<DocumentUser> selectAllDocument();
-
-    @Query("SELECT * FROM document_user WHERE id = :position")
-    public DocumentUser selectDocument(int position);
+//    //Insert one document
+//    @Insert()
+//    public void insertDocument(DocumentUser childrenList);
+//
+//    @Query("SELECT * FROM document_user")
+//    public List<DocumentUser> selectAllDocument();
+//
+//    @Query("SELECT * FROM document_user WHERE id = :position")
+//    public DocumentUser selectDocument(int position);
 
     //DELETE SPECIFIC ELEMENT INTO DATABASE
     @Query("DELETE FROM document_user WHERE id = :id_document")
