@@ -4,4 +4,9 @@
     <string name="mise_en_forme_option">Mise en forme du document</string>
     <string name="delivery_date">Date de remise</string>
     <string name="no_date_selected">Aucune date</string>
+    <string name="channel_name">channel name</string>
+    <string name="channel_description">channel description</string>
+    <string name="toolbar_title_chat">Chat</string>
+    <string name="chat_send_message_failed">Impossible d\'envoyer le message. Vérifier votre connexion et réessayer.</string>
+
 </resources>

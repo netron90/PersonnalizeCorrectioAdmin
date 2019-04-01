@@ -7,7 +7,7 @@ import android.widget.TextView;
 public class UserDetail extends AppCompatActivity {
 
     private TextView userName, userEmail, userPhone;
-    public static final String USER_NAME_KEY = "userNameKey", USER_EMAIL_KEY = "userNameKey",
+    public static final String USER_NAME_KEY = "userNameKey", USER_EMAIL_KEY = "userEmailKey",
     USER_PHONE_KEY = "userPhoneKey";
 
     @Override

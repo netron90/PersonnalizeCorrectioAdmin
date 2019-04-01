@@ -6,6 +6,8 @@ import android.arch.persistence.room.Query;
 
 import java.util.List;
 
+import netron90.personnalize.personnalize_co_admin.UserMessage;
+
 /**
  * Created by CHRISTIAN on 17/02/2019.
  */
@@ -92,4 +94,10 @@ public interface UserDao {
 
     @Query("SELECT * FROM document_available")
     public List<DocumentAvailable> selectListDocAvailable();
+
+    @Insert
+    public void insertMessageUser(UserMessageDb userMessage);
+
+    @Query("SELECT * FROM user_message_db")
+    public List<UserMessageDb> selectAllMessage ();
 }

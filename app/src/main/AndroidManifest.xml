@@ -19,7 +19,11 @@
         <activity
             android:name=".UserDetail"
             android:parentActivityName=".MainActivity" />
-        <activity android:name=".Diapositive"></activity>
+        <activity android:name=".Diapositive" />
+        <activity android:name=".ChatActivity"
+            android:parentActivityName=".MainActivity"></activity>
+
+        <service android:name=".Service.CheckNewDocument"></service>
     </application>
 
 </manifest>
