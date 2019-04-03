@@ -11,6 +11,7 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.DefaultItemAnimator;
@@ -20,11 +21,14 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.MetadataChanges;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -37,6 +41,7 @@ import javax.annotation.Nullable;
 import netron90.personnalize.personnalize_co_admin.Database.DocumentAvailable;
 import netron90.personnalize.personnalize_co_admin.Database.PersonnalizeDatabase;
 import netron90.personnalize.personnalize_co_admin.Service.CheckNewDocument;
+import netron90.personnalize.personnalize_co_admin.Service.CheckNewMessage;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -57,6 +62,22 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        if(CheckNewDocument.registration != null)
+        {
+            Log.d("ACTIVITY START", "registration document remove");
+            CheckNewDocument.registration.remove();
+            CheckNewDocument.registration= null;
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putBoolean(CheckNewDocument.CHECK_NEW_DOCUMENT, false).apply();
+        }
+        if(CheckNewMessage.registration != null)
+        {
+            Log.d("ACTIVITY START", "registration message remove");
+            CheckNewMessage.registration.remove();
+            CheckNewMessage.registration= null;
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putBoolean(CheckNewMessage.CHECK_NEW_MESSAGE, false).apply();
+        }
         recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
         toolbar = (Toolbar) findViewById(R.id.toolbar_main);
 
@@ -76,16 +97,37 @@ public class MainActivity extends AppCompatActivity {
             registration = null;
         }
 
-
-
+        listDocuments = new ArrayList<>();
+        documentAvailableAdapter = new DocumentAvailableAdapter(listDocuments);
+        recyclerView.setAdapter(documentAvailableAdapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+        recyclerView.setHasFixedSize(true);
+        recyclerView.setItemAnimator(new DefaultItemAnimator());
 
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        createRealtimeListener();
+        //createRealtimeListener();
+        createListener();
         createNotificationChannel();
+        if(CheckNewDocument.registration != null)
+        {
+            Log.d("ACTIVITY START", "registration document remove");
+            CheckNewDocument.registration.remove();
+            CheckNewDocument.registration= null;
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putBoolean(CheckNewDocument.CHECK_NEW_DOCUMENT, false).apply();
+        }
+        if(CheckNewMessage.registration != null)
+        {
+            Log.d("ACTIVITY START", "registration message remove");
+            CheckNewMessage.registration.remove();
+            CheckNewMessage.registration= null;
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putBoolean(CheckNewMessage.CHECK_NEW_MESSAGE, false).apply();
+        }
     }
 
     @Override
@@ -97,12 +139,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        Intent intent = new Intent(this, CheckNewDocument.class);
+        Intent intent = new Intent(getApplicationContext(), CheckNewDocument.class);
+        Intent intent2 = new Intent(getApplicationContext(), CheckNewMessage.class);
         startService(intent);
+        startService(intent2);
     }
 
-    private void getQueryResult(QueryDocumentSnapshot doc)
+    private DocumentAvailable getQueryResult(QueryDocumentSnapshot doc)
     {
+        documentAvailable = new DocumentAvailable();
         if (doc.get("documentName") != null)
         {
             documentAvailable.documentName = doc.getString("documentName");
@@ -164,6 +209,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         documentAvailable.docRef = doc.getId();
+
+        return documentAvailable;
     }
 
     private void createRealtimeListener()
@@ -290,6 +337,141 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
+//    private void createListener()
+//    {
+//        registration = dbFirestore.collection("Document")
+//                .addSnapshotListener(MetadataChanges.INCLUDE, new EventListener<QuerySnapshot>() {
+//                    @Override
+//                    public void onEvent(@Nullable QuerySnapshot snapshots, @Nullable FirebaseFirestoreException e) {
+//                        if(e != null)
+//                        {
+//                            return;
+//                        }
+//
+//                        if(isOnline() &&  !snapshots.isEmpty())
+//                        {
+//
+//                            if(snapshots.size() == DocumentAvailableAdapter.docAvailable.size())
+//                            {}
+//                            else
+//                            {
+//                                for(DocumentChange dc : snapshots.getDocumentChanges())
+//                                {
+//                                    switch (dc.getType())
+//                                    {
+//                                        case ADDED:
+//                                            DocumentAvailableAdapter.docAvailable.add(getQueryResult(dc.getDocument()));
+//                                            break;
+//                                    }
+//                                }
+//                                documentAvailableAdapter.notifyDataSetChanged();
+//                                SaveFirstDocument saveFirstDocument = new SaveFirstDocument();
+//                                saveFirstDocument.execute();
+//                            }
+//
+//
+//
+//                        }
+//                        else
+//                        {
+//                            if(snapshots.size() == DocumentAvailableAdapter.docAvailable.size())
+//                            {}
+//                            else {
+//                                LoadData loadData = new LoadData();
+//                                loadData.execute();
+//                            }
+//
+//                        }
+//
+//                    }
+//                });
+//    }
+
+    private void createListener()
+    {
+        registration = dbFirestore.collection("Document")
+                .addSnapshotListener(MetadataChanges.INCLUDE, new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot snapshots, @Nullable FirebaseFirestoreException e) {
+
+                        if(e != null)
+                        {
+                            return;
+                        }
+
+                        if(isOnline())
+                        {
+                            final QuerySnapshot snapshot = snapshots;
+                            //TODO: ACTIVE NETWORK ACCESS
+                            dbFirestore.enableNetwork()
+                                    .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                        @Override
+                                        public void onComplete(@NonNull Task<Void> task) {
+                                            //TODO: GET DATA FROM FIREBASE SERVER
+                                            if(snapshot != null && !snapshot.isEmpty())
+                                            {
+                                                if(DocumentAvailableAdapter.docAvailable.size() == snapshot.size())
+                                                {}
+                                                else
+                                                {
+                                                    Log.d("LISTER", "All doc Load. Document Added");
+                                                    Log.d("LISTER", "List document changed: " + snapshot.getDocumentChanges().size());
+                                                    for(DocumentChange dc : snapshot.getDocumentChanges())
+                                                    {
+                                                        if(dc.getType() == DocumentChange.Type.ADDED)
+                                                        {
+                                                            DocumentAvailableAdapter.docAvailable.add(getQueryResult(dc.getDocument()));
+                                                        }
+
+                                                    }
+                                                    documentAvailableAdapter.notifyDataSetChanged();
+                                                    Log.d("LISTER", "List notify");
+                                                }
+
+                                            }
+
+                                        }
+                                    });
+
+
+                        }
+                        else
+                        {
+
+                            final QuerySnapshot snapshot = snapshots;
+                            //TODO: GET DATA FROM CACHE
+                            dbFirestore.disableNetwork().addOnCompleteListener(new OnCompleteListener<Void>() {
+                                @Override
+                                public void onComplete(@NonNull Task<Void> task) {
+                                    Log.d("LISTER", "List document changed on Cache: " + snapshot.getDocumentChanges().size());
+                                    if(!snapshot.isEmpty() && snapshot != null)
+                                    {
+                                        if(DocumentAvailableAdapter.docAvailable.size() == snapshot.size())
+                                        {}
+                                        else
+                                        {
+                                            Log.d("LISTER", "List document changed on Cache: " + snapshot.getDocumentChanges().size());
+                                            for(DocumentChange dc : snapshot.getDocumentChanges())
+                                            {
+                                                if(dc.getType() == DocumentChange.Type.ADDED)
+                                                {
+                                                    DocumentAvailableAdapter.docAvailable.add(getQueryResult(dc.getDocument()));
+                                                }
+                                            }
+                                            documentAvailableAdapter.notifyDataSetChanged();
+                                            Log.d("LISTER", "List notify off line");
+                                        }
+
+                                    }
+
+                                }
+                            });
+                        }
+
+                    }
+                });
+    }
+
     @Override
     protected void onStop() {
         super.onStop();
@@ -318,16 +500,39 @@ public class MainActivity extends AppCompatActivity {
                     PersonnalizeDatabase.class, "personnalize").build();
 
 
-            if (sharedPreferences.getBoolean(FIRST_CALL_SERVE_LISTENER, false) == false)
+            if(sharedPreferences.getBoolean(FIRST_CALL_SERVE_LISTENER, false) == false)
             {
-                Log.d("DATA", "Premier appel. Tache darriere plan");
-                for(int i = 0; i < listDocuments.size(); i++)
+                for(int i = 0; i < DocumentAvailableAdapter.docAvailable.size(); i++)
                 {
-                    db.userDao().insertNewDocAvailable(listDocuments.get(i));
+                    db.userDao().insertNewDocAvailable(DocumentAvailableAdapter.docAvailable.get(i));
                 }
                 SharedPreferences.Editor editor = sharedPreferences.edit();
                 editor.putBoolean(FIRST_CALL_SERVE_LISTENER, true).apply();
             }
+            else
+            {
+                List<DocumentAvailable> docAvailable = db.userDao().selectListDocAvailable();
+                if(docAvailable.size() != DocumentAvailableAdapter.docAvailable.size())
+                {
+                    for(int i = 0; i < DocumentAvailableAdapter.docAvailable.size(); i++)
+                    {
+                        if(i == DocumentAvailableAdapter.docAvailable.size() - 1)
+                        {
+                            db.userDao().insertNewDocAvailable(DocumentAvailableAdapter.docAvailable.get(i));
+                        }
+                    }
+                }
+            }
+//            if (sharedPreferences.getBoolean(FIRST_CALL_SERVE_LISTENER, false) == false)
+//            {
+//                Log.d("DATA", "Premier appel. Tache darriere plan");
+//                for(int i = 0; i < listDocuments.size(); i++)
+//                {
+//                    db.userDao().insertNewDocAvailable(listDocuments.get(i));
+//                }
+//                SharedPreferences.Editor editor = sharedPreferences.edit();
+//                editor.putBoolean(FIRST_CALL_SERVE_LISTENER, true).apply();
+//            }
 //            else
 //            {
 //                Log.d("DATA", "Autre appel. Tache darriere plan");
@@ -386,17 +591,26 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(List<DocumentAvailable> documentAvailables) {
             super.onPostExecute(documentAvailables);
 
-            if(documentAvailables.size() != 0)
+            if(documentAvailableAdapter != null)
             {
-                recyclerView.setVisibility(View.VISIBLE);
-                documentAvailableAdapter = new DocumentAvailableAdapter(documentAvailables);
-                recyclerView.setAdapter(documentAvailableAdapter);
-                recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
-                recyclerView.setHasFixedSize(true);
-                recyclerView.setItemAnimator(new DefaultItemAnimator());
-
-
+                for(int i = 0; i < documentAvailables.size(); i++)
+                {
+                    DocumentAvailableAdapter.docAvailable.add(documentAvailables.get(i));
+                }
+                documentAvailableAdapter.notifyDataSetChanged();
             }
+
+//            if(documentAvailables.size() != 0)
+//            {
+//                recyclerView.setVisibility(View.VISIBLE);
+//                documentAvailableAdapter = new DocumentAvailableAdapter(documentAvailables);
+//                recyclerView.setAdapter(documentAvailableAdapter);
+//                recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+//                recyclerView.setHasFixedSize(true);
+//                recyclerView.setItemAnimator(new DefaultItemAnimator());
+//
+//
+//            }
         }
     }
 

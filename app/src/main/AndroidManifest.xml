@@ -24,6 +24,7 @@
             android:parentActivityName=".MainActivity"></activity>
 
         <service android:name=".Service.CheckNewDocument"></service>
+        <service android:name=".Service.CheckNewMessage"></service>
     </application>
 
 </manifest>
